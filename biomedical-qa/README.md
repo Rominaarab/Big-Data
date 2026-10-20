@@ -1,6 +1,6 @@
 # Biomedical literature pipeline: repaired Docker rerun
 
-**To run without using your PC for Docker, follow [CLOUD_RUN.md](CLOUD_RUN.md).**
+**To run with Docker, follow [CLOUD_RUN.md](CLOUD_RUN.md).**
 The commands below are the optional local workflow; cloud execution uses the
 GitHub Actions workflow at the repository's `.github/workflows/biomedical-qa.yml`.
 
