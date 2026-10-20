@@ -35,7 +35,9 @@ jobs:
       NCBI_EMAIL: ${{ secrets.NCBI_EMAIL }}
       NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Build Docker image and run unit tests
         run: docker build -t biomedical-qa:run ./biomedical-qa
@@ -74,7 +76,7 @@ jobs:
 
       - name: Save results on GitHub
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: biomedical-results-${{ github.run_id }}-${{ github.run_attempt }}
           path: cloud-results/
