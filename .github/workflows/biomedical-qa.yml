@@ -1,0 +1,82 @@
+name: Biomedical QA (cloud Docker)
+
+on:
+  workflow_dispatch:
+    inputs:
+      demo:
+        description: 'Synthetic smoke test (turn off for real API data)'
+        type: boolean
+        default: true
+      query:
+        description: 'Disease phrase for live acquisition'
+        type: string
+        default: 'breast cancer'
+      limit:
+        description: 'Maximum records per source (1-1000)'
+        type: string
+        default: '10'
+      question:
+        description: 'Evidence search question (live mode only)'
+        type: string
+        default: 'trastuzumab HER2 breast cancer'
+
+permissions:
+  contents: read
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      DEMO: ${{ inputs.demo }}
+      QUERY: ${{ inputs.query }}
+      LIMIT: ${{ inputs.limit }}
+      QUESTION: ${{ inputs.question }}
+      NCBI_EMAIL: ${{ secrets.NCBI_EMAIL }}
+      NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image and run unit tests
+        run: docker build -t biomedical-qa:run ./biomedical-qa
+
+      - name: Run pipeline on GitHub's computer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/cloud-results"
+          mode=()
+          if [[ "$DEMO" == "true" ]]; then
+            mode+=(--demo)
+          elif [[ -z "$NCBI_EMAIL" ]]; then
+            echo 'Add the NCBI_EMAIL repository secret before a live run.' >&2
+            exit 1
+          fi
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -e HOME=/tmp -e MPLCONFIGDIR=/tmp/matplotlib \
+            -e NCBI_EMAIL -e NCBI_API_KEY \
+            -v "$GITHUB_WORKSPACE/cloud-results:/data" biomedical-qa:run \
+            run --query "$QUERY" --limit "$LIMIT" --out /data/run "${mode[@]}"
+
+      - name: Retrieve source-linked passages
+        shell: bash
+        run: |
+          set -euo pipefail
+          question="$QUESTION"
+          if [[ "$DEMO" == "true" ]]; then
+            question='Drug Alpha Condition Beta'
+          fi
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -e HOME=/tmp \
+            -v "$GITHUB_WORKSPACE/cloud-results:/data" biomedical-qa:run \
+            ask --data /data/run/documents.json --question "$question" \
+            --top-k 5 --save /data/run/answer.json
+
+      - name: Save results on GitHub
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: biomedical-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: cloud-results/
+          if-no-files-found: warn
+          retention-days: 7
