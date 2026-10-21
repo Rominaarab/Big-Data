@@ -1,0 +1,13 @@
+{
+  "name": "biomedical-evidence-explorer",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test test.mjs",
+    "test:server": "node test-server.mjs"
+  }
+}
